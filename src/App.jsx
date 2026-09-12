@@ -1,15 +1,16 @@
 import { useState } from "react";
-import Header from "./components/Header";
-import Stats from "./components/Stats";
+import { randomString } from "./Spotify.jsx";
 
 function App() {
   const [minutes, setMinutes] = useState(0);
 
+  console.log("Random string:", randomString(128));
+
   return (
     <div>
-      <Header />
+      <h1>Minecraft Music Tracker</h1>
 
-      <Stats minutes={minutes} />
+      <p>Minecraft listening time: {minutes} minutes</p>
 
       <button onClick={() => setMinutes(10)}>
         Connect Spotify
