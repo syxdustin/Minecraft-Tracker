@@ -1,21 +1,33 @@
 import { useState } from "react";
-import { randomString } from "./Spotify.jsx";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Header from "./components/Header.jsx";
+import Stats from "./components/Stats.jsx";
+import Callback from "./components/Callback.jsx";
+import { loginWithSpotify } from "./Spotify.jsx";
 
-function App() {
+function Home() {
   const [minutes, setMinutes] = useState(0);
-
-  console.log("Random string:", randomString(128));
 
   return (
     <div>
-      <h1>Minecraft Music Tracker</h1>
+      <Header />
+      <Stats minutes={minutes} />
 
-      <p>Minecraft listening time: {minutes} minutes</p>
-
-      <button onClick={() => setMinutes(10)}>
+      <button onClick={loginWithSpotify}>
         Connect Spotify
       </button>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/callback" element={<Callback />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

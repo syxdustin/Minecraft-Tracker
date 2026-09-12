@@ -30,4 +30,28 @@ function base64encode(input) {
         .replace(/\//g, "_");
 }
 
-export { randomString, sha256, base64encode };
+async function loginWithSpotify() {
+    const codeVerifier = randomString(64);
+
+    localStorage.setItem("code_verifier", codeVerifier);
+
+    const hashed = await sha256(codeVerifier);
+    const codeChallenge = base64encode(hashed);
+
+    const scope = "user-read-recently-played";
+
+    const authUrl = new URL("https://accounts.spotify.com/authorize");
+
+    authUrl.search = new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        scope: scope,
+        code_challenge_method: "S256",
+        code_challenge: codeChallenge,
+        redirect_uri: redirectUri,
+    }).toString();
+
+    window.location.href = authUrl.toString();
+}
+
+export { randomString, sha256, base64encode, loginWithSpotify, };
