@@ -54,4 +54,28 @@ async function loginWithSpotify() {
     window.location.href = authUrl.toString();
 }
 
-export { randomString, sha256, base64encode, loginWithSpotify, };
+async function getToken(code) {
+    const codeVerifier = localStorage.getItem("code_verifier");
+    
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code: code,
+            redirect_uri: redirectUri,
+            client_id: clientId,
+            code_verifier: codeVerifier,
+        }),
+    });
+
+    const data = await response.json();
+
+    console.log(data);
+
+    return data;
+}
+
+export { randomString, sha256, base64encode, loginWithSpotify, getToken };
