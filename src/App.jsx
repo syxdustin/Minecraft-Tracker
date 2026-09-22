@@ -3,13 +3,26 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header.jsx";
 import Stats from "./components/Stats.jsx";
 import Callback from "./components/Callback.jsx";
+import CognitoCallback from "./components/CognitoCallback.jsx";
 import ListeningDashboard from "./components/ListeningDashboard.jsx";
+import SessionHistory from "./components/SessionHistory.jsx";
 import {
   clearSpotifySession,
   getRecentlyPlayed,
   hasSpotifySession,
   loginWithSpotify,
 } from "./Spotify.jsx";
+import {
+  isCognitoAuthenticated,
+  isCognitoConfigured,
+  loginWithCognito,
+  logoutFromCognito,
+} from "./auth/cognito.js";
+import {
+  isSessionApiConfigured,
+  loadSessions,
+  saveSessions,
+} from "./api/sessions.js";
 
 const MINECRAFT_SOUNDTRACK_ALBUMS = new Set([
   "minecraft - volume alpha",
@@ -61,7 +74,23 @@ function getAlbumTotals(items) {
   return [...totals.values()].sort((a, b) => b.durationMs - a.durationMs);
 }
 
+function createSessionRecord(item) {
+  const track = item.track;
+
+  return {
+    playedAt: item.played_at,
+    trackId: track.id,
+    trackName: track.name,
+    artists: track.artists.map((artist) => artist.name).join(", "),
+    albumId: track.album?.id,
+    albumName: track.album?.name,
+    imageUrl: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url,
+    durationMs: track.duration_ms,
+  };
+}
+
 function Home() {
+  const cloudConfigured = isCognitoConfigured() && isSessionApiConfigured();
   const [minutes, setMinutes] = useState(0);
   const [minecraftTracks, setMinecraftTracks] = useState([]);
   const [excludedTracks, setExcludedTracks] = useState([]);
@@ -69,6 +98,56 @@ function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [historySessions, setHistorySessions] = useState([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
+  const [isCloudSignedIn, setIsCloudSignedIn] = useState(
+    () => cloudConfigured && isCognitoAuthenticated()
+  );
+
+  useEffect(() => {
+    if (!cloudConfigured || !isCloudSignedIn) {
+      setHistorySessions([]);
+      setHistoryError("");
+      setHasLoadedHistory(false);
+      setIsHistoryLoading(false);
+      return;
+    }
+
+    let isCurrent = true;
+
+    async function loadSessionHistory() {
+      setIsHistoryLoading(true);
+      setHistoryError("");
+
+      try {
+        const sessions = await loadSessions();
+
+        if (!isCurrent) {
+          return;
+        }
+
+        setHistorySessions(sessions);
+        setHasLoadedHistory(true);
+      } catch (requestError) {
+        if (isCurrent) {
+          setHistoryError(requestError.message);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsHistoryLoading(false);
+        }
+      }
+    }
+
+    loadSessionHistory();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [cloudConfigured, historyReloadKey, isCloudSignedIn]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -101,6 +180,26 @@ function Home() {
         setMinecraftTracks(countedTracks);
         setExcludedTracks(notMinecraftTracks);
         setMinutes(Math.round(totalMilliseconds / 60000));
+
+        if (cloudConfigured && isCloudSignedIn) {
+          try {
+            const sessions = countedTracks
+              .filter((item) => item.track?.id && item.played_at)
+              .map(createSessionRecord);
+
+            await saveSessions(sessions);
+
+            if (isCurrent) {
+              setHistoryReloadKey((key) => key + 1);
+            }
+          } catch (syncError) {
+            if (isCurrent) {
+              setHistoryError(
+                `Your recent tracks loaded, but cloud history could not save: ${syncError.message}`
+              );
+            }
+          }
+        }
       } catch (requestError) {
         if (!isCurrent) {
           return;
@@ -123,12 +222,24 @@ function Home() {
     return () => {
       isCurrent = false;
     };
-  }, [isConnected, reloadKey]);
+  }, [cloudConfigured, isCloudSignedIn, isConnected, reloadKey]);
 
   const albumTotals = useMemo(
     () => getAlbumTotals(minecraftTracks),
     [minecraftTracks]
   );
+  const historyMinutes = useMemo(
+    () =>
+      Math.round(
+        historySessions.reduce(
+          (total, session) => total + session.durationMs,
+          0
+        ) / 60000
+      ),
+    [historySessions]
+  );
+  const showSavedTotal =
+    cloudConfigured && isCloudSignedIn && hasLoadedHistory;
 
   function handleDisconnect() {
     clearSpotifySession();
@@ -137,6 +248,23 @@ function Home() {
     setExcludedTracks([]);
     setMinutes(0);
     setError("");
+  }
+
+  async function handleCloudSignIn() {
+    setHistoryError("");
+
+    try {
+      await loginWithCognito();
+    } catch (loginError) {
+      setHistoryError(loginError.message);
+    }
+  }
+
+  function handleCloudSignOut() {
+    setIsCloudSignedIn(false);
+    setHistorySessions([]);
+    setHasLoadedHistory(false);
+    logoutFromCognito();
   }
 
   return (
@@ -169,7 +297,14 @@ function Home() {
         )}
       </div>
 
-      <Stats minutes={minutes} />
+      <Stats
+        minutes={showSavedTotal ? historyMinutes : minutes}
+        label={
+          showSavedTotal
+            ? "Saved Minecraft listening time"
+            : "Recent Minecraft listening time"
+        }
+      />
 
       <ListeningDashboard
         tracks={minecraftTracks}
@@ -178,6 +313,17 @@ function Home() {
         isConnected={isConnected}
         isLoading={isLoading}
         error={error}
+      />
+
+      <SessionHistory
+        sessions={historySessions}
+        isConfigured={cloudConfigured}
+        isSignedIn={isCloudSignedIn}
+        isLoading={isHistoryLoading}
+        error={historyError}
+        onSignIn={handleCloudSignIn}
+        onSignOut={handleCloudSignOut}
+        onRefresh={() => setHistoryReloadKey((key) => key + 1)}
       />
     </main>
   );
@@ -189,6 +335,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/callback" element={<Callback />} />
+        <Route path="/auth/callback" element={<CognitoCallback />} />
       </Routes>
     </BrowserRouter>
   );
