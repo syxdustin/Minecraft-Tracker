@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Minecraft Tracker secured session-history API
+
+Parameters:
+  CognitoUserPoolId:
+    Type: String
+    Default: us-east-1_MSWmpq2eA
+    Description: Cognito User Pool ID that protects this API.
+  CognitoAppClientId:
+    Type: String
+    Default: 25a6n05qh9ndqblur9n0oqsdag
+    Description: Cognito app client ID accepted by the JWT authorizer.
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "http://127.0.0.1:5173,https://syxdustin.github.io"
+    Description: Browser origins allowed to call the API.
+
+Resources:
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: playedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: playedAt
+          KeyType: RANGE
+
+  SessionsApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowOrigins: !Ref AllowedOrigins
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              audience:
+                - !Ref CognitoAppClientId
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPoolId}"
+        DefaultAuthorizer: CognitoAuthorizer
+
+  SessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handler.handler
+      Runtime: nodejs22.x
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          SESSIONS_TABLE: !Ref SessionsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+      Events:
+        GetSessions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SessionsApi
+            Path: /sessions
+            Method: GET
+        SaveSessions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SessionsApi
+            Path: /sessions
+            Method: POST
+
+Outputs:
+  SessionsApiUrl:
+    Description: API base URL for VITE_SESSIONS_API_URL.
+    Value: !Sub "https://${SessionsApi}.execute-api.${AWS::Region}.amazonaws.com"
