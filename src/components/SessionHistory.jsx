@@ -40,6 +40,8 @@ function SessionHistory({
   isSignedIn,
   isLoading,
   error,
+  dateRange,
+  onDateRangeChange,
   onSignIn,
   onSignOut,
   onRefresh,
@@ -60,6 +62,18 @@ function SessionHistory({
           <div className="session-history__actions">
             {isSignedIn ? (
               <>
+                <label className="session-history__filter">
+                  <span>Show</span>
+                  <select
+                    value={dateRange}
+                    onChange={(event) => onDateRangeChange(event.target.value)}
+                  >
+                    <option value="all">All time</option>
+                    <option value="today">Today</option>
+                    <option value="week">Last 7 days</option>
+                    <option value="month">Last 30 days</option>
+                  </select>
+                </label>
                 <button
                   className="button button--secondary"
                   type="button"
@@ -104,7 +118,7 @@ function SessionHistory({
       ) : sessions.length ? (
         <>
           <p className="dashboard__muted session-history__message">
-            {sessions.length} saved Minecraft plays.
+            {sessions.length} saved Minecraft plays in this range.
           </p>
           <ol className="track-list">
             {sessions.map((session) => (
@@ -117,8 +131,8 @@ function SessionHistory({
         </>
       ) : (
         <p className="dashboard__muted session-history__message">
-          No Minecraft plays are saved yet. Connect Spotify, then refresh your
-          recent listening.
+          No Minecraft plays are saved in this range. Connect Spotify, then
+          refresh your recent listening.
         </p>
       )}
     </section>

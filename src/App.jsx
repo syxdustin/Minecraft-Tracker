@@ -42,6 +42,33 @@ const MINECRAFT_COMPOSERS = new Set([
   "Aaron Cherof",
 ]);
 
+const DATE_RANGE_LABELS = {
+  all: "all time",
+  today: "today",
+  week: "last 7 days",
+  month: "last 30 days",
+};
+
+function getSessionsForRange(sessions, dateRange) {
+  if (dateRange === "all") {
+    return sessions;
+  }
+
+  const cutoff = new Date();
+
+  if (dateRange === "today") {
+    cutoff.setHours(0, 0, 0, 0);
+  } else if (dateRange === "week") {
+    cutoff.setDate(cutoff.getDate() - 6);
+    cutoff.setHours(0, 0, 0, 0);
+  } else {
+    cutoff.setDate(cutoff.getDate() - 29);
+    cutoff.setHours(0, 0, 0, 0);
+  }
+
+  return sessions.filter((session) => new Date(session.playedAt) >= cutoff);
+}
+
 function isMinecraftSoundtrackTrack(track) {
   const albumName = track.album?.name?.toLowerCase();
 
@@ -103,6 +130,7 @@ function Home() {
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyReloadKey, setHistoryReloadKey] = useState(0);
+  const [dateRange, setDateRange] = useState("all");
   const [isCloudSignedIn, setIsCloudSignedIn] = useState(
     () => cloudConfigured && isCognitoAuthenticated()
   );
@@ -228,15 +256,19 @@ function Home() {
     () => getAlbumTotals(minecraftTracks),
     [minecraftTracks]
   );
+  const filteredHistorySessions = useMemo(
+    () => getSessionsForRange(historySessions, dateRange),
+    [dateRange, historySessions]
+  );
   const historyMinutes = useMemo(
     () =>
       Math.round(
-        historySessions.reduce(
+        filteredHistorySessions.reduce(
           (total, session) => total + session.durationMs,
           0
         ) / 60000
       ),
-    [historySessions]
+    [filteredHistorySessions]
   );
   const showSavedTotal =
     cloudConfigured && isCloudSignedIn && hasLoadedHistory;
@@ -301,7 +333,7 @@ function Home() {
         minutes={showSavedTotal ? historyMinutes : minutes}
         label={
           showSavedTotal
-            ? "Saved Minecraft listening time"
+            ? `Saved Minecraft listening time (${DATE_RANGE_LABELS[dateRange]})`
             : "Recent Minecraft listening time"
         }
       />
@@ -316,11 +348,13 @@ function Home() {
       />
 
       <SessionHistory
-        sessions={historySessions}
+        sessions={filteredHistorySessions}
         isConfigured={cloudConfigured}
         isSignedIn={isCloudSignedIn}
         isLoading={isHistoryLoading}
         error={historyError}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
         onSignIn={handleCloudSignIn}
         onSignOut={handleCloudSignOut}
         onRefresh={() => setHistoryReloadKey((key) => key + 1)}
