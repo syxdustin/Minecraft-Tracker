@@ -367,3 +367,104 @@ p {
   background: var(--bg);
   font: inherit;
 }
+
+.heatmap {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.heatmap__message,
+.heatmap__summary {
+  margin-top: 16px;
+}
+
+.heatmap__summary {
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.heatmap__scroll {
+  margin-top: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.heatmap__grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 12px;
+  grid-template-rows: repeat(7, 12px);
+  gap: 3px;
+  width: max-content;
+}
+
+.heatmap__cell {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.heatmap__cell--level-0 {
+  background: #ece7f1;
+}
+
+.heatmap__cell--level-1 {
+  background: #e4c7ff;
+}
+
+.heatmap__cell--level-2 {
+  background: #c68cff;
+}
+
+.heatmap__cell--level-3 {
+  background: #9a45db;
+}
+
+.heatmap__cell--level-4 {
+  background: #652090;
+}
+
+.heatmap__cell--empty {
+  opacity: 0.3;
+}
+
+.heatmap__legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.heatmap__legend span:first-child {
+  margin-right: 2px;
+}
+
+.heatmap__legend span:last-child {
+  margin-left: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .heatmap__cell--level-0 {
+    background: #292436;
+  }
+
+  .heatmap__cell--level-1 {
+    background: #4d3270;
+  }
+
+  .heatmap__cell--level-2 {
+    background: #7345a5;
+  }
+
+  .heatmap__cell--level-3 {
+    background: #a35ee0;
+  }
+
+  .heatmap__cell--level-4 {
+    background: #d6abff;
+  }
+}

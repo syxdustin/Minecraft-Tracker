@@ -6,6 +6,7 @@ import Callback from "./components/Callback.jsx";
 import CognitoCallback from "./components/CognitoCallback.jsx";
 import ListeningDashboard from "./components/ListeningDashboard.jsx";
 import SessionHistory from "./components/SessionHistory.jsx";
+import CalendarHeatmap from "./components/CalendarHeatmap.jsx";
 import {
   clearSpotifySession,
   getRecentlyPlayed,
@@ -359,6 +360,14 @@ function Home() {
         onSignOut={handleCloudSignOut}
         onRefresh={() => setHistoryReloadKey((key) => key + 1)}
       />
+
+      {cloudConfigured ? (
+        <CalendarHeatmap
+          sessions={historySessions}
+          isSignedIn={isCloudSignedIn}
+          isLoading={isHistoryLoading}
+        />
+      ) : null}
     </main>
   );
 }
