@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex" />
+    <title>Redirecting…</title>
+    <script>
+      (function (location) {
+        const pathSegmentsToKeep = 1;
+        const route = location.pathname
+          .split("/")
+          .slice(1 + pathSegmentsToKeep)
+          .join("/")
+          .replace(/&/g, "~and~");
+        const basePath = location.pathname
+          .split("/")
+          .slice(0, 1 + pathSegmentsToKeep)
+          .join("/");
+        const search = location.search
+          ? `&${location.search.slice(1).replace(/&/g, "~and~")}`
+          : "";
+
+        location.replace(
+          `${location.protocol}//${location.host}${basePath}/?/${route}${search}${location.hash}`
+        );
+      })(window.location);
+    </script>
+  </head>
+  <body>
+    <p>Redirecting…</p>
+  </body>
+</html>

@@ -11,6 +11,16 @@ cp .env.example .env
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
+Spotify supports the local loopback callback already configured in the app:
+
+```text
+http://127.0.0.1:5173/callback
+```
+
+Cognito requires HTTPS except for `localhost`, while Spotify requires the
+`127.0.0.1` loopback address. Test the combined Spotify and cloud-history
+flow on GitHub Pages instead of local HTTP.
+
 ## Cognito setup
 
 The project uses your Cognito User Pool to protect cloud history.
@@ -19,15 +29,37 @@ The project uses your Cognito User Pool to protect cloud history.
 - App Client ID: `25a6n05qh9ndqblur9n0oqsdag`
 - Domain: `https://us-east-1mswmpq2ea.auth.us-east-1.amazoncognito.com`
 
-In the Cognito app-client configuration, enable the authorization-code flow and
-the `openid` and `email` scopes. Add these callback and logout URLs:
+In the Cognito app-client configuration, use the authorization-code flow with
+the `openid` and `email` scopes. The app client must not have a client
+secret. Add these GitHub Pages URLs:
 
 ```text
-http://127.0.0.1:5173/auth/callback
-http://127.0.0.1:5173/
+https://syxdustin.github.io/Minecraft-Tracker/auth/callback
+https://syxdustin.github.io/Minecraft-Tracker/
 ```
 
-The React app uses PKCE, so the app client must not have a client secret.
+## Publish to GitHub Pages
+
+The repository contains a workflow that builds and deploys the site on every
+push to `main`.
+
+1. In GitHub, open **Settings → Pages** and select **GitHub Actions** as the
+   source.
+2. In the Spotify Developer Dashboard, add this redirect URI:
+
+   ```text
+   https://syxdustin.github.io/Minecraft-Tracker/callback
+   ```
+
+3. Push to `main` and wait for the **Deploy GitHub Pages** workflow to
+   finish. The site URL is:
+
+   ```text
+   https://syxdustin.github.io/Minecraft-Tracker/
+   ```
+
+The callback rewrite files let both OAuth providers return directly to
+`/callback` or `/auth/callback` without GitHub Pages returning a 404.
 
 ## Deploy session history to AWS
 
@@ -45,16 +77,19 @@ React app → Cognito JWT → API Gateway → Lambda → DynamoDB
    sam deploy --guided
    ```
 
-3. Copy the `SessionsApiUrl` output into `.env` as
-   `VITE_SESSIONS_API_URL`.
-4. Restart Vite.
+3. Copy the `SessionsApiUrl` output.
+4. In GitHub, open **Settings → Secrets and variables → Actions → Variables**.
+   Create the repository variable `VITE_SESSIONS_API_URL` and paste that
+   output as its value.
+5. Re-run the Pages workflow or push another commit to `main`.
 
-For GitHub Pages, add the production callback and logout URLs to Cognito and
-set the Vite environment variables in the deployment workflow.
+The API URL is public, but the API accepts requests only with a valid Cognito
+token. Do not store a client secret in GitHub or in the browser.
 
 ## Current features
 
 - Spotify Authorization Code with PKCE and token refresh
 - Official Minecraft soundtrack filter
 - Recent-track dashboard with album totals and exclusions
-- Cognito-protected DynamoDB session-history API
+- Cognito-protected DynamoDB session history
+- Date filtering and a 365-day listening heatmap

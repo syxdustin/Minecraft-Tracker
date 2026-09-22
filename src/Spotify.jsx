@@ -1,9 +1,15 @@
 const clientId = "e3e72ff226d64e66b49d63b04f630d1e";
-const redirectUri = "http://127.0.0.1:5173/callback";
 const ACCESS_TOKEN_KEY = "spotify_access_token";
 const REFRESH_TOKEN_KEY = "spotify_refresh_token";
 const TOKEN_EXPIRY_KEY = "spotify_token_expiry";
 const TOKEN_EXPIRY_SAFETY_WINDOW = 60 * 1000;
+
+function getRedirectUri() {
+  return (
+    import.meta.env.VITE_SPOTIFY_REDIRECT_URI ||
+    `${window.location.origin}${import.meta.env.BASE_URL}callback`
+  );
+}
 
 function randomString(length) {
   const characters =
@@ -68,6 +74,7 @@ async function loginWithSpotify() {
   const codeChallenge = base64encode(hashed);
 
   const scope = "user-read-recently-played";
+  const redirectUri = getRedirectUri();
 
   const authUrl = new URL("https://accounts.spotify.com/authorize");
 
@@ -85,6 +92,7 @@ async function loginWithSpotify() {
 
 async function getToken(code) {
   const codeVerifier = localStorage.getItem("code_verifier");
+  const redirectUri = getRedirectUri();
 
   if (!codeVerifier) {
     throw new Error("Spotify sign-in expired. Please try connecting again.");
