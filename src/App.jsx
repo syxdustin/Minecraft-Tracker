@@ -7,19 +7,24 @@ import { getRecentlyPlayed, loginWithSpotify } from "./Spotify.jsx";
 
 function Home() {
   const [minutes, setMinutes] = useState(0);
-  
-  useEffect(() => {
-  async function loadSpotifyData() {
-    try {
-      const data = await getRecentlyPlayed();
-      console.log(data.items);
-    } catch (error) {
-      console.error(error.message);
-    }
-  }
 
-  loadSpotifyData();
-}, []);
+  useEffect(() => {
+    async function loadSpotifyData() {
+      try {
+        const data = await getRecentlyPlayed();
+
+        const totalMilliseconds = data.items.reduce((total, item) => {
+          return total + item.track.duration_ms;
+        }, 0);
+
+        setMinutes(Math.round(totalMilliseconds / 60000));
+      } catch (error) {
+        console.error(error.message);
+      }
+    }
+
+    loadSpotifyData();
+  }, []);
 
   return (
     <div>
@@ -31,7 +36,6 @@ function Home() {
       </button>
     </div>
   );
-  
 }
 
 function App() {
@@ -44,6 +48,5 @@ function App() {
     </BrowserRouter>
   );
 }
-
 
 export default App;
