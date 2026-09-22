@@ -1,5 +1,7 @@
 const clientId = "e3e72ff226d64e66b49d63b04f630d1e";
 const redirectUri = "http://127.0.0.1:5173/callback";
+const ACCESS_TOKEN_KEY = "spotify_access_token";
+const TOKEN_EXPIRY_KEY = "spotify_token_expiry";
 
 function randomString(length) {
     const characters =
@@ -73,9 +75,43 @@ async function getToken(code) {
 
     const data = await response.json();
 
-    console.log(data);
+    if (!response.ok || !data.access_token) {
+    throw new Error(data.error_description || "Could not get Spotify token");
+    }
+
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+
+    const expiresAt = Date.now() + data.expires_in * 1000;
+    sessionStorage.setItem(TOKEN_EXPIRY_KEY, expiresAt.toString());
+
+    localStorage.removeItem("code_verifier");
+
+    return data;
+}
+async function getRecentlyPlayed() {
+    const accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+    const expiresAt = Number(sessionStorage.getItem(TOKEN_EXPIRY_KEY));
+
+    if (!accessToken || Date.now() >= expiresAt) {
+        throw new Error("Spotify token is missing or expired");
+    }
+
+    const response = await fetch(
+        "https://api.spotify.com/v1/me/player/recently-played",
+        {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error?.message || "Spotify request failed");
+    }
 
     return data;
 }
 
-export { randomString, sha256, base64encode, loginWithSpotify, getToken };
+export { randomString, sha256, base64encode, loginWithSpotify, getToken, getRecentlyPlayed };
