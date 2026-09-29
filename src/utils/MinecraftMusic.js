@@ -17,18 +17,28 @@ const MINECRAFT_COMPOSERS = new Set([
 ]);
 
 export function isMinecraftSoundtrackTrack(track) {
-  const albumName = track.album?.name?.toLowerCase();
+  const albumName = track?.album?.name?.toLowerCase();
+  const hasMinecraftComposer = track?.artists?.some((artist) =>
+    MINECRAFT_COMPOSERS.has(artist.name)
+  );
 
-  return (
-    MINECRAFT_SOUNDTRACK_ALBUMS.has(albumName) &&
-    track.artists.some((artist) => MINECRAFT_COMPOSERS.has(artist.name))
+  return Boolean(
+    MINECRAFT_SOUNDTRACK_ALBUMS.has(albumName) && hasMinecraftComposer
   );
 }
 
 export function getAlbumTotals(items) {
-  const totals = items.reduce((albums, item) => {
-    const album = item.track.album;
-    const existing = albums.get(album.id) || {
+  const albums = new Map();
+
+  for (const item of items) {
+    const track = item.track;
+    const album = track?.album;
+
+    if (!album?.id) {
+      continue;
+    }
+
+    const currentAlbum = albums.get(album.id) || {
       id: album.id,
       name: album.name,
       imageUrl: album.images?.[1]?.url || album.images?.[0]?.url,
@@ -36,18 +46,10 @@ export function getAlbumTotals(items) {
       trackCount: 0,
     };
 
-    existing.durationMs += item.track.duration_ms;
-    existing.trackCount += 1;
-    albums.set(album.id, existing);
-    return albums;
-  }, new Map());
+    currentAlbum.durationMs += track.duration_ms || 0;
+    currentAlbum.trackCount += 1;
+    albums.set(album.id, currentAlbum);
+  }
 
-  return [...totals.values()].sort((a, b) => b.durationMs - a.durationMs);
-}
-
-export function createHeatmapEntry(item) {
-  return {
-    playedAt: item.played_at,
-    durationMs: item.track.duration_ms,
-  };
+  return [...albums.values()].sort((a, b) => b.durationMs - a.durationMs);
 }
