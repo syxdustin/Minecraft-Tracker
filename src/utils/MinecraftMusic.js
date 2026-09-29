@@ -1,12 +1,12 @@
-const MINECRAFT_SOUNDTRACK_ALBUMS = new Set([
-  "minecraft - volume alpha",
-  "minecraft - volume beta",
-  "minecraft: nether update: original game soundtrack",
-  "minecraft: caves & cliffs (original game soundtrack)",
-  "minecraft: the wild update (original game soundtrack)",
-  "minecraft: trails & tales: original game soundtrack",
-  "minecraft: tricky trials (original game soundtrack)",
-]);
+const MINECRAFT_SOUNDTRACK_ALBUM_PREFIXES = [
+  "minecraftvolumealpha",
+  "minecraftvolumebeta",
+  "minecraftnetherupdate",
+  "minecraftcavescliffs",
+  "minecraftthewildupdate",
+  "minecrafttrailstales",
+  "minecrafttrickytrials",
+];
 
 const MINECRAFT_COMPOSERS = new Set([
   "C418",
@@ -16,15 +16,20 @@ const MINECRAFT_COMPOSERS = new Set([
   "Aaron Cherof",
 ]);
 
+function normalizeAlbumName(name = "") {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export function isMinecraftSoundtrackTrack(track) {
-  const albumName = track?.album?.name?.toLowerCase();
+  const albumName = normalizeAlbumName(track?.album?.name);
+  const hasMinecraftAlbum = MINECRAFT_SOUNDTRACK_ALBUM_PREFIXES.some((prefix) =>
+    albumName.includes(prefix)
+  );
   const hasMinecraftComposer = track?.artists?.some((artist) =>
     MINECRAFT_COMPOSERS.has(artist.name)
   );
 
-  return Boolean(
-    MINECRAFT_SOUNDTRACK_ALBUMS.has(albumName) && hasMinecraftComposer
-  );
+  return Boolean(hasMinecraftAlbum && hasMinecraftComposer);
 }
 
 export function getAlbumTotals(items) {
