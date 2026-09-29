@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 :root {
   --page: #f7f8fc;
   --text: #172033;
@@ -157,39 +158,37 @@ button {
 }
 
 .bubble-field {
-  display: flex;
-  min-height: 330px;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 35px 10px 16px;
+  position: relative;
+  min-height: 560px;
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--page) 85%, var(--line));
 }
 
 .album-bubble {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
+  width: max(150px, var(--bubble-size));
+  height: calc(var(--bubble-size) + var(--bubble-label-height));
+  flex-direction: column;
+  align-items: center;
+  color: var(--text);
+  will-change: transform, opacity;
+}
+
+.album-bubble__art {
+  position: relative;
   width: var(--bubble-size);
   height: var(--bubble-size);
   overflow: hidden;
-  align-items: flex-start;
-  justify-content: flex-end;
   flex: 0 0 auto;
-  flex-direction: column;
-  margin: -8px;
   border-radius: 50%;
-  color: #ffffff;
   isolation: isolate;
-  transform: translateY(var(--bubble-offset));
   box-shadow: 0 12px 26px var(--bubble-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-.album-bubble::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  content: "";
-  background: linear-gradient(180deg, transparent 38%, rgba(4, 9, 20, 0.82) 100%);
 }
 
 .album-bubble img,
@@ -230,27 +229,23 @@ button {
 }
 
 .album-bubble__details {
-  position: relative;
-  z-index: 2;
   width: 100%;
-  padding: 12px;
-}
-
-.album-bubble__details span {
-  display: block;
-  color: rgba(255, 255, 255, 0.74);
-  font-size: 0.72rem;
+  padding: 9px 8px 0;
+  text-align: center;
 }
 
 .album-bubble__details strong {
   display: block;
-  margin-top: 2px;
-  overflow: hidden;
-  font-size: 0.84rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.album-bubble__details span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .album-bubbles__status {
@@ -269,6 +264,22 @@ button {
 
 .callback-status__error {
   color: #c22a38;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-field {
+    display: flex;
+    min-height: 0;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 22px 10px;
+    padding: 24px 10px;
+  }
+
+  .album-bubble {
+    position: relative;
+  }
 }
 
 @media (max-width: 640px) {
@@ -293,11 +304,10 @@ button {
   }
 
   .bubble-field {
-    min-height: 0;
-    padding: 32px 0 10px;
+    min-height: 520px;
   }
 
   .album-bubble {
-    transform: translateY(calc(var(--bubble-offset) / 2));
+    width: max(128px, var(--bubble-size));
   }
 }
