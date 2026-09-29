@@ -6,15 +6,12 @@ import {
   loginWithSpotify,
 } from "../Spotify.jsx";
 import {
-  createHeatmapEntry,
   getAlbumTotals,
   isMinecraftSoundtrackTrack,
 } from "../utils/MinecraftMusic.js";
 
 export default function useSpotifyListening() {
-  const [minutes, setMinutes] = useState(0);
   const [minecraftTracks, setMinecraftTracks] = useState([]);
-  const [excludedTracks, setExcludedTracks] = useState([]);
   const [isConnected, setIsConnected] = useState(hasSpotifySession);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,24 +22,13 @@ export default function useSpotifyListening() {
 
     try {
       const data = await getRecentlyPlayed();
+      const items = data.items || [];
 
-      const minecraft = data.items.filter((item) =>
-        isMinecraftSoundtrackTrack(item.track)
+      setMinecraftTracks(
+        items.filter((item) => isMinecraftSoundtrackTrack(item.track))
       );
-      const excluded = data.items.filter(
-        (item) => !isMinecraftSoundtrackTrack(item.track)
-      );
-
-      const totalMilliseconds = minecraft.reduce(
-        (total, item) => total + item.track.duration_ms,
-        0
-      );
-
-      setMinecraftTracks(minecraft);
-      setExcludedTracks(excluded);
-      setMinutes(Math.round(totalMilliseconds / 60000));
     } catch (requestError) {
-      setError(requestError.message);
+      setError(requestError.message || "Could not load your Spotify history.");
 
       if (!hasSpotifySession()) {
         setIsConnected(false);
@@ -58,40 +44,42 @@ export default function useSpotifyListening() {
     }
   }, [isConnected, loadSpotifyData]);
 
-  function connectSpotify() {
-    loginWithSpotify();
-  }
-
-  function disconnectSpotify() {
-    clearSpotifySession();
-    setIsConnected(false);
-    setMinecraftTracks([]);
-    setExcludedTracks([]);
-    setMinutes(0);
-    setError("");
-  }
+  const minutes = useMemo(
+    () =>
+      Math.round(
+        minecraftTracks.reduce(
+          (total, item) => total + (item.track.duration_ms || 0),
+          0
+        ) / 60000
+      ),
+    [minecraftTracks]
+  );
 
   const albumTotals = useMemo(
     () => getAlbumTotals(minecraftTracks),
     [minecraftTracks]
   );
 
-  const heatmapSessions = useMemo(
-    () => minecraftTracks.map(createHeatmapEntry),
-    [minecraftTracks]
-  );
+  function connectSpotify() {
+    return loginWithSpotify();
+  }
+
+  function disconnectSpotify() {
+    clearSpotifySession();
+    setIsConnected(false);
+    setMinecraftTracks([]);
+    setError("");
+  }
 
   return {
-    minutes,
-    minecraftTracks,
-    excludedTracks,
     albumTotals,
-    heatmapSessions,
-    isConnected,
-    isLoading,
-    error,
     connectSpotify,
     disconnectSpotify,
+    error,
+    isConnected,
+    isLoading,
+    minutes,
+    minecraftTracks,
     refreshListening: loadSpotifyData,
   };
 }
