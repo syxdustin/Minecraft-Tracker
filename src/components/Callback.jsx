@@ -8,7 +8,6 @@ function Callback() {
   const hasExchanged = useRef(false);
 
   useEffect(() => {
-    // React Strict Mode runs effects twice in development.
     if (hasExchanged.current) return;
     hasExchanged.current = true;
 
@@ -24,8 +23,8 @@ function Callback() {
       try {
         await getToken(code);
         navigate("/", { replace: true });
-      } catch (error) {
-        setError(error.message);
+      } catch (requestError) {
+        setError(requestError.message);
       }
     }
 
@@ -33,10 +32,18 @@ function Callback() {
   }, [navigate]);
 
   if (error) {
-    return <p>Spotify connection failed: {error}</p>;
+    return (
+      <main className="callback-status">
+        <p className="callback-status__error">Spotify connection failed: {error}</p>
+      </main>
+    );
   }
 
-  return <p>Connecting Spotify...</p>;
+  return (
+    <main className="callback-status">
+      <p>Connecting Spotify…</p>
+    </main>
+  );
 }
 
 export default Callback;
