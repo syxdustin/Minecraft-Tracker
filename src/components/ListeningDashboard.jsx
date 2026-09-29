@@ -105,16 +105,6 @@ function ListeningDashboard({
             {excludedTracks.length} recent tracks were excluded because they are
             not on an approved Minecraft soundtrack album.
           </p>
-
-          {excludedTracks.length ? (
-            <ul className="excluded-list">
-              {excludedTracks.slice(0, 5).map((item) => (
-                <li key={`${item.track.id}-${item.played_at}`}>
-                  {item.track.name} — {item.track.artists[0]?.name}
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </section>
       </div>
 
