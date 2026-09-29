@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const BUBBLE_LABEL_HEIGHT = 64;
+const BUBBLE_LABEL_HEIGHT = 92;
 
 function formatListeningTime(minutes) {
   if (minutes < 60) {
