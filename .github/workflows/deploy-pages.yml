@@ -35,10 +35,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          VITE_COGNITO_DOMAIN: https://us-east-1mswmpq2ea.auth.us-east-1.amazoncognito.com
-          VITE_COGNITO_CLIENT_ID: 25a6n05qh9ndqblur9n0oqsdag
-          VITE_SESSIONS_API_URL: ${{ vars.VITE_SESSIONS_API_URL }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
