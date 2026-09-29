@@ -39,7 +39,6 @@ export function getAlbumTotals(items) {
     existing.durationMs += item.track.duration_ms;
     existing.trackCount += 1;
     albums.set(album.id, existing);
-
     return albums;
   }, new Map());
 

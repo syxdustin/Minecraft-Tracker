@@ -9,7 +9,7 @@ import {
   createHeatmapEntry,
   getAlbumTotals,
   isMinecraftSoundtrackTrack,
-} from "../utils/minecraftMusic.js";
+} from "../utils/MinecraftMusic.js";
 
 export default function useSpotifyListening() {
   const [minutes, setMinutes] = useState(0);
