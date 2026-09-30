@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
 
-const BUBBLE_LABEL_HEIGHT = 92;
-
 function formatListeningTime(minutes) {
   if (minutes < 60) {
     return `${minutes} min`;
@@ -54,38 +52,106 @@ function useBubbleMotion(bubbleKey) {
     let startTime;
     let particles = [];
     let resizeObserver;
+    const listenerCleanups = [];
 
-    function setBubbleRef(id, node) {
-      if (node) {
-        bubbleRefs.current.set(id, node);
-      } else {
-        bubbleRefs.current.delete(id);
+    function keepInsideField(particle) {
+      const maxX = Math.max(0, field.clientWidth - particle.width);
+      const maxY = Math.max(0, field.clientHeight - particle.height);
+
+      particle.x = Math.min(Math.max(particle.x, 0), maxX);
+      particle.y = Math.min(Math.max(particle.y, 0), maxY);
+
+      return { maxX, maxY };
+    }
+
+    function drawParticle(particle) {
+      particle.node.style.opacity = "1";
+      particle.node.style.transform =
+        `translate3d(${particle.x}px, ${particle.y}px, 0)`;
+    }
+
+    function beginDrag(event, particle) {
+      event.preventDefault();
+
+      particle.dragging = true;
+      particle.settled = true;
+      particle.velocityX = 0;
+      particle.velocityY = 0;
+      particle.pointerId = event.pointerId;
+      particle.dragOffsetX = event.clientX - particle.x;
+      particle.dragOffsetY = event.clientY - particle.y;
+      particle.node.classList.add("album-bubble--dragging");
+      particle.node.setPointerCapture(event.pointerId);
+    }
+
+    function moveDrag(event, particle) {
+      if (!particle.dragging || event.pointerId !== particle.pointerId) {
+        return;
+      }
+
+      particle.x = event.clientX - particle.dragOffsetX;
+      particle.y = event.clientY - particle.dragOffsetY;
+      keepInsideField(particle);
+      drawParticle(particle);
+    }
+
+    function endDrag(event, particle) {
+      if (!particle.dragging || event.pointerId !== particle.pointerId) {
+        return;
+      }
+
+      particle.dragging = false;
+      particle.node.classList.remove("album-bubble--dragging");
+
+      if (particle.node.hasPointerCapture(event.pointerId)) {
+        particle.node.releasePointerCapture(event.pointerId);
       }
     }
 
-    function resetParticles() {
+    function createParticles() {
       const fieldWidth = field.clientWidth;
-      const fieldHeight = field.clientHeight;
 
       particles = [...bubbleRefs.current.entries()].map(([id, node], index) => {
         const width = node.offsetWidth;
         const height = node.offsetHeight;
         const usableWidth = Math.max(0, fieldWidth - width);
         const startingX = usableWidth
-          ? (index * 97 + width * 0.5) % usableWidth
+          ? (index * 131 + width * 0.35) % usableWidth
           : 0;
-
-        return {
+        const particle = {
           id,
           node,
           width,
           height,
           x: startingX,
-          y: -height - index * 88,
-          velocityX: (index % 2 ? 1 : -1) * (0.38 + (index % 3) * 0.08),
+          y: -height - index * 72,
+          velocityX: (index % 2 ? 1 : -1) * (0.7 + (index % 3) * 0.15),
           velocityY: 0,
-          delay: index * 150,
+          delay: index * 170,
+          dragging: false,
+          settled: false,
+          pointerId: null,
+          dragOffsetX: 0,
+          dragOffsetY: 0,
         };
+
+        const onPointerDown = (event) => beginDrag(event, particle);
+        const onPointerMove = (event) => moveDrag(event, particle);
+        const onPointerUp = (event) => endDrag(event, particle);
+
+        node.addEventListener("pointerdown", onPointerDown);
+        node.addEventListener("pointermove", onPointerMove);
+        node.addEventListener("pointerup", onPointerUp);
+        node.addEventListener("pointercancel", onPointerUp);
+
+        listenerCleanups.push(() => {
+          node.removeEventListener("pointerdown", onPointerDown);
+          node.removeEventListener("pointermove", onPointerMove);
+          node.removeEventListener("pointerup", onPointerUp);
+          node.removeEventListener("pointercancel", onPointerUp);
+        });
+
+        return particle;
       });
     }
 
@@ -95,8 +161,6 @@ function useBubbleMotion(bubbleKey) {
       }
 
       const elapsed = timestamp - startTime;
-      const fieldWidth = field.clientWidth;
-      const fieldHeight = field.clientHeight;
 
       for (const particle of particles) {
         if (elapsed < particle.delay) {
@@ -104,45 +168,70 @@ function useBubbleMotion(bubbleKey) {
           continue;
         }
 
-        const maxX = Math.max(0, fieldWidth - particle.width);
-        const maxY = Math.max(0, fieldHeight - particle.height);
+        if (particle.dragging || particle.settled) {
+          continue;
+        }
 
-        particle.velocityY += 0.22;
+        const { maxX, maxY } = keepInsideField(particle);
+        const motionTime = elapsed - particle.delay;
+
+        particle.velocityY += 0.24;
         particle.x += particle.velocityX;
         particle.y += particle.velocityY;
 
         if (particle.x <= 0 || particle.x >= maxX) {
           particle.x = Math.min(Math.max(particle.x, 0), maxX);
-          particle.velocityX *= -1;
+          particle.velocityX *= -0.72;
         }
 
         if (particle.y >= maxY) {
           particle.y = maxY;
-          particle.velocityY *= -0.56;
-          particle.velocityX *= 0.995;
+          particle.velocityY *= -0.42;
+          particle.velocityX *= 0.78;
 
-          if (Math.abs(particle.velocityY) < 1.3) {
-            particle.velocityY = -3.6;
+          if (Math.abs(particle.velocityY) < 0.8) {
+            particle.velocityY = 0;
           }
         }
 
-        particle.node.style.opacity = String(
-          Math.min(1, (elapsed - particle.delay) / 420)
-        );
-        particle.node.style.transform = `translate3d(${particle.x}px, ${particle.y}px, 0)`;
+        if (
+          motionTime > 5200 ||
+          (particle.y === maxY &&
+            particle.velocityY === 0 &&
+            Math.abs(particle.velocityX) < 0.12)
+        ) {
+          particle.y = maxY;
+          particle.velocityX = 0;
+          particle.velocityY = 0;
+          particle.settled = true;
+        }
+
+        particle.node.style.opacity = String(Math.min(1, motionTime / 420));
+        particle.node.style.transform =
+          `translate3d(${particle.x}px, ${particle.y}px, 0)`;
       }
 
       frameId = window.requestAnimationFrame(animate);
     }
 
-    resetParticles();
-    resizeObserver = new ResizeObserver(resetParticles);
+    createParticles();
+
+    resizeObserver = new ResizeObserver(() => {
+      for (const particle of particles) {
+        particle.width = particle.node.offsetWidth;
+        particle.height = particle.node.offsetHeight;
+        keepInsideField(particle);
+        drawParticle(particle);
+      }
+    });
+
     resizeObserver.observe(field);
     frameId = window.requestAnimationFrame(animate);
 
     return () => {
       window.cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
+      listenerCleanups.forEach((cleanup) => cleanup());
     };
   }, [bubbleKey]);
 
@@ -160,14 +249,11 @@ function AlbumBubble({ album, size, bubbleRefs }) {
         }
       }}
       className="album-bubble"
-      style={{
-        "--bubble-size": `${size}px`,
-        "--bubble-label-height": `${BUBBLE_LABEL_HEIGHT}px`,
-      }}
+      style={{ "--bubble-size": `${size}px` }}
     >
       <div className="album-bubble__art">
         {album.imageUrl ? (
-          <img src={album.imageUrl} alt="" />
+          <img src={album.imageUrl} alt="" draggable="false" />
         ) : (
           <span className="album-bubble__fallback" aria-hidden="true">
             {getAlbumInitials(album.name)}
@@ -207,7 +293,9 @@ function AlbumBubbleVisualizer({
               : "No official Minecraft tracks in this Spotify window."}
           </p>
         </div>
-        <p className="album-bubbles__legend">Bubble area = listening time</p>
+        <p className="album-bubbles__legend">
+          Bubble area = listening time · Drag to move
+        </p>
       </header>
 
       {error ? <p className="album-bubbles__error">{error}</p> : null}
@@ -218,7 +306,7 @@ function AlbumBubbleVisualizer({
         <div
           ref={fieldRef}
           className="bubble-field"
-          aria-label="Minecraft soundtrack albums moving by listening time"
+          aria-label="Draggable Minecraft soundtrack albums sized by listening time"
         >
           {albumTotals.map((album) => (
             <AlbumBubble
