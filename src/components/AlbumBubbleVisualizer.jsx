@@ -217,13 +217,13 @@ function useBubbleMotion(bubbleKey) {
           (particle.x >= maxX && particle.velocityX > 0)
         ) {
           particle.x = Math.min(Math.max(particle.x, 0), maxX);
-          particle.energy *= 0.72;
+          particle.energy *= 0.82;
           particle.velocityX *= -0.72;
         }
 
         if (particle.y <= 0 && particle.velocityY < 0) {
           particle.y = 0;
-          particle.energy *= 0.7;
+          particle.energy *= 0.8;
           particle.velocityY = Math.abs(particle.velocityY) * 0.7;
         }
 
@@ -231,10 +231,10 @@ function useBubbleMotion(bubbleKey) {
           const impactSpeed = Math.abs(particle.velocityY);
 
           particle.y = maxY;
-          particle.energy *= 0.62;
+          particle.energy *= 0.7;
           particle.velocityX *= 0.78;
           particle.velocityY =
-            -Math.min(2.4, impactSpeed * 0.3 * particle.energy);
+            -Math.min(3.1, impactSpeed * 0.5 * particle.energy);
 
           if (particle.energy < 0.14 || Math.abs(particle.velocityY) < 0.55) {
             particle.velocityX = 0;
