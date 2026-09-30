@@ -172,12 +172,19 @@ button {
   top: 0;
   left: 0;
   display: flex;
-  width: max(150px, var(--bubble-size));
-  height: calc(var(--bubble-size) + var(--bubble-label-height));
+  width: max(180px, var(--bubble-size));
   flex-direction: column;
   align-items: center;
   color: var(--text);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   will-change: transform, opacity;
+}
+
+.album-bubble--dragging {
+  z-index: 10;
+  cursor: grabbing;
 }
 
 .album-bubble__art {
@@ -189,6 +196,7 @@ button {
   border-radius: 50%;
   isolation: isolate;
   box-shadow: 0 12px 26px var(--bubble-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  pointer-events: none;
 }
 
 .album-bubble img,
@@ -230,15 +238,17 @@ button {
 
 .album-bubble__details {
   width: 100%;
-  padding: 9px 8px 0;
+  padding: 10px 4px 14px;
+  overflow: visible;
   text-align: center;
 }
 
 .album-bubble__details strong {
   display: block;
-  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .album-bubble__details span {
@@ -308,6 +318,6 @@ button {
   }
 
   .album-bubble {
-    width: max(128px, var(--bubble-size));
+    width: max(156px, var(--bubble-size));
   }
 }
