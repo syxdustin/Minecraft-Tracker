@@ -161,16 +161,20 @@ function useBubbleMotion(bubbleKey) {
       }
 
       const elapsed = timestamp - startTime;
+      let needsAnotherFrame = false;
 
       for (const particle of particles) {
         if (elapsed < particle.delay) {
           particle.node.style.opacity = "0";
+          needsAnotherFrame = true;
           continue;
         }
 
         if (particle.dragging || particle.settled) {
           continue;
         }
+
+        needsAnotherFrame = true;
 
         const { maxX, maxY } = keepInsideField(particle);
         const motionTime = elapsed - particle.delay;
@@ -211,7 +215,9 @@ function useBubbleMotion(bubbleKey) {
           `translate3d(${particle.x}px, ${particle.y}px, 0)`;
       }
 
-      frameId = window.requestAnimationFrame(animate);
+      if (needsAnotherFrame) {
+        frameId = window.requestAnimationFrame(animate);
+      }
     }
 
     createParticles();
@@ -220,8 +226,11 @@ function useBubbleMotion(bubbleKey) {
       for (const particle of particles) {
         particle.width = particle.node.offsetWidth;
         particle.height = particle.node.offsetHeight;
-        keepInsideField(particle);
-        drawParticle(particle);
+
+        if (particle.settled || particle.dragging) {
+          keepInsideField(particle);
+          drawParticle(particle);
+        }
       }
     });
 
