@@ -78,10 +78,12 @@ function useBubbleMotion(bubbleKey) {
       particle.settled = true;
       particle.velocityX = 0;
       particle.velocityY = 0;
+      particle.energy = 1;
       particle.pointerId = event.pointerId;
       particle.dragOffsetX = event.clientX - particle.x;
       particle.dragOffsetY = event.clientY - particle.y;
       particle.lastPointerX = event.clientX;
+      particle.lastPointerY = event.clientY;
       particle.node.classList.add("album-bubble--dragging");
       particle.node.setPointerCapture(event.pointerId);
     }
@@ -95,7 +97,12 @@ function useBubbleMotion(bubbleKey) {
         -4,
         Math.min(4, (event.clientX - particle.lastPointerX) * 0.25)
       );
+      particle.velocityY = Math.max(
+        -4,
+        Math.min(4, (event.clientY - particle.lastPointerY) * 0.25)
+      );
       particle.lastPointerX = event.clientX;
+      particle.lastPointerY = event.clientY;
       particle.x = event.clientX - particle.dragOffsetX;
       particle.y = event.clientY - particle.dragOffsetY;
       keepInsideField(particle);
@@ -109,8 +116,7 @@ function useBubbleMotion(bubbleKey) {
 
       particle.dragging = false;
       particle.settled = false;
-      particle.hasLanded = false;
-      particle.velocityY = 0;
+      particle.energy = 1;
       particle.node.classList.remove("album-bubble--dragging");
       startAnimation();
 
@@ -141,9 +147,10 @@ function useBubbleMotion(bubbleKey) {
           delay: index * 170,
           dragging: false,
           settled: false,
-          hasLanded: false,
+          energy: 1,
           pointerId: null,
           lastPointerX: 0,
+          lastPointerY: 0,
           dragOffsetX: 0,
           dragOffsetY: 0,
         };
@@ -205,19 +212,31 @@ function useBubbleMotion(bubbleKey) {
         particle.x += particle.velocityX;
         particle.y += particle.velocityY;
 
-        if (particle.x <= 0 || particle.x >= maxX) {
+        if (
+          (particle.x <= 0 && particle.velocityX < 0) ||
+          (particle.x >= maxX && particle.velocityX > 0)
+        ) {
           particle.x = Math.min(Math.max(particle.x, 0), maxX);
+          particle.energy *= 0.72;
           particle.velocityX *= -0.72;
         }
 
-        if (particle.y >= maxY) {
-          particle.y = maxY;
+        if (particle.y <= 0 && particle.velocityY < 0) {
+          particle.y = 0;
+          particle.energy *= 0.7;
+          particle.velocityY = Math.abs(particle.velocityY) * 0.7;
+        }
 
-          if (!particle.hasLanded) {
-            particle.hasLanded = true;
-            particle.velocityY = -2.2;
-            particle.velocityX *= 0.65;
-          } else {
+        if (particle.y >= maxY) {
+          const impactSpeed = Math.abs(particle.velocityY);
+
+          particle.y = maxY;
+          particle.energy *= 0.62;
+          particle.velocityX *= 0.78;
+          particle.velocityY =
+            -Math.min(2.4, impactSpeed * 0.3 * particle.energy);
+
+          if (particle.energy < 0.14 || Math.abs(particle.velocityY) < 0.55) {
             particle.velocityX = 0;
             particle.velocityY = 0;
             particle.settled = true;
