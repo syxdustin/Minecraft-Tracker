@@ -50,6 +50,7 @@ function useBubbleMotion(bubbleKey) {
 
     let frameId;
     let startTime;
+    let animationRunning = false;
     let particles = [];
     let resizeObserver;
     const listenerCleanups = [];
@@ -80,6 +81,7 @@ function useBubbleMotion(bubbleKey) {
       particle.pointerId = event.pointerId;
       particle.dragOffsetX = event.clientX - particle.x;
       particle.dragOffsetY = event.clientY - particle.y;
+      particle.lastPointerX = event.clientX;
       particle.node.classList.add("album-bubble--dragging");
       particle.node.setPointerCapture(event.pointerId);
     }
@@ -89,6 +91,11 @@ function useBubbleMotion(bubbleKey) {
         return;
       }
 
+      particle.velocityX = Math.max(
+        -4,
+        Math.min(4, (event.clientX - particle.lastPointerX) * 0.25)
+      );
+      particle.lastPointerX = event.clientX;
       particle.x = event.clientX - particle.dragOffsetX;
       particle.y = event.clientY - particle.dragOffsetY;
       keepInsideField(particle);
@@ -101,7 +108,11 @@ function useBubbleMotion(bubbleKey) {
       }
 
       particle.dragging = false;
+      particle.settled = false;
+      particle.hasLanded = false;
+      particle.velocityY = 0;
       particle.node.classList.remove("album-bubble--dragging");
+      startAnimation();
 
       if (particle.node.hasPointerCapture(event.pointerId)) {
         particle.node.releasePointerCapture(event.pointerId);
@@ -130,7 +141,9 @@ function useBubbleMotion(bubbleKey) {
           delay: index * 170,
           dragging: false,
           settled: false,
+          hasLanded: false,
           pointerId: null,
+          lastPointerX: 0,
           dragOffsetX: 0,
           dragOffsetY: 0,
         };
@@ -153,6 +166,15 @@ function useBubbleMotion(bubbleKey) {
 
         return particle;
       });
+    }
+
+    function startAnimation() {
+      if (animationRunning) {
+        return;
+      }
+
+      animationRunning = true;
+      frameId = window.requestAnimationFrame(animate);
     }
 
     function animate(timestamp) {
@@ -190,24 +212,16 @@ function useBubbleMotion(bubbleKey) {
 
         if (particle.y >= maxY) {
           particle.y = maxY;
-          particle.velocityY *= -0.42;
-          particle.velocityX *= 0.78;
 
-          if (Math.abs(particle.velocityY) < 0.8) {
+          if (!particle.hasLanded) {
+            particle.hasLanded = true;
+            particle.velocityY = -2.2;
+            particle.velocityX *= 0.65;
+          } else {
+            particle.velocityX = 0;
             particle.velocityY = 0;
+            particle.settled = true;
           }
-        }
-
-        if (
-          motionTime > 5200 ||
-          (particle.y === maxY &&
-            particle.velocityY === 0 &&
-            Math.abs(particle.velocityX) < 0.12)
-        ) {
-          particle.y = maxY;
-          particle.velocityX = 0;
-          particle.velocityY = 0;
-          particle.settled = true;
         }
 
         particle.node.style.opacity = String(Math.min(1, motionTime / 420));
@@ -217,6 +231,8 @@ function useBubbleMotion(bubbleKey) {
 
       if (needsAnotherFrame) {
         frameId = window.requestAnimationFrame(animate);
+      } else {
+        animationRunning = false;
       }
     }
 
@@ -235,7 +251,7 @@ function useBubbleMotion(bubbleKey) {
     });
 
     resizeObserver.observe(field);
-    frameId = window.requestAnimationFrame(animate);
+    startAnimation();
 
     return () => {
       window.cancelAnimationFrame(frameId);
