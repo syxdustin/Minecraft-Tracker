@@ -1,33 +1,17 @@
-function Header({
-  isConnected,
-  isLoading,
-  onConnect,
-  onDisconnect,
-  onRefresh,
-}) {
+function Header({ isConnected, onConnect, onDisconnect }) {
   return (
     <header className="site-header">
-      <h1>Minecraft Music Tracker</h1>
+      <h1>Spotify Sync</h1>
 
       <div className="site-header__actions">
         {isConnected ? (
-          <>
-            <button
-              className="button button--quiet"
-              type="button"
-              onClick={onRefresh}
-              disabled={isLoading}
-            >
-              {isLoading ? "Loading…" : "Refresh"}
-            </button>
-            <button
-              className="button"
-              type="button"
-              onClick={onDisconnect}
-            >
-              Disconnect
-            </button>
-          </>
+          <button
+            className="button button--quiet"
+            type="button"
+            onClick={onDisconnect}
+          >
+            Disconnect
+          </button>
         ) : (
           <button className="button" type="button" onClick={onConnect}>
             Connect Spotify

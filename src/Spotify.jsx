@@ -2,6 +2,8 @@ const clientId = "e3e72ff226d64e66b49d63b04f630d1e";
 const ACCESS_TOKEN_KEY = "spotify_access_token";
 const REFRESH_TOKEN_KEY = "spotify_refresh_token";
 const TOKEN_EXPIRY_KEY = "spotify_token_expiry";
+const TOKEN_SCOPE_KEY = "spotify_token_scope";
+const SPOTIFY_SCOPE = "user-read-playback-state user-modify-playback-state";
 const TOKEN_EXPIRY_SAFETY_WINDOW = 60 * 1000;
 
 function getRedirectUri() {
@@ -49,20 +51,39 @@ function saveToken(tokenData) {
   if (tokenData.refresh_token) {
     sessionStorage.setItem(REFRESH_TOKEN_KEY, tokenData.refresh_token);
   }
+
+  if (tokenData.scope) {
+    sessionStorage.setItem(TOKEN_SCOPE_KEY, tokenData.scope);
+  }
 }
 
 function clearSpotifySession() {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+  sessionStorage.removeItem(TOKEN_SCOPE_KEY);
   localStorage.removeItem("code_verifier");
 }
 
+function hasRequiredScope() {
+  const grantedScopes = (sessionStorage.getItem(TOKEN_SCOPE_KEY) || "").split(" ");
+
+  return SPOTIFY_SCOPE.split(" ").every((scope) => grantedScopes.includes(scope));
+}
+
 function hasSpotifySession() {
-  return Boolean(
+  const hasToken = Boolean(
     sessionStorage.getItem(ACCESS_TOKEN_KEY) ||
       sessionStorage.getItem(REFRESH_TOKEN_KEY)
   );
+
+  // Sessions from older versions of the app were granted different scopes.
+  if (hasToken && !hasRequiredScope()) {
+    clearSpotifySession();
+    return false;
+  }
+
+  return hasToken;
 }
 
 async function loginWithSpotify() {
@@ -73,7 +94,6 @@ async function loginWithSpotify() {
   const hashed = await sha256(codeVerifier);
   const codeChallenge = base64encode(hashed);
 
-  const scope = "user-read-recently-played";
   const redirectUri = getRedirectUri();
 
   const authUrl = new URL("https://accounts.spotify.com/authorize");
@@ -81,7 +101,7 @@ async function loginWithSpotify() {
   authUrl.search = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
-    scope: scope,
+    scope: SPOTIFY_SCOPE,
     code_challenge_method: "S256",
     code_challenge: codeChallenge,
     redirect_uri: redirectUri,
@@ -172,25 +192,92 @@ async function getValidAccessToken() {
   return refreshAccessToken();
 }
 
-async function getRecentlyPlayed() {
+async function spotifyRequest(path, { method = "GET", body } = {}) {
   const accessToken = await getValidAccessToken();
 
-  const response = await fetch(
-    "https://api.spotify.com/v1/me/player/recently-played?limit=50",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
+  const response = await fetch(`https://api.spotify.com/v1${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
-  const data = await response.json();
+  if (response.status === 204 || response.status === 202) {
+    return null;
+  }
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    throw new Error(data.error?.message || "Spotify request failed");
+    const error = new Error(data?.error?.message || "Spotify request failed");
+    error.status = response.status;
+    error.reason = data?.error?.reason;
+    throw error;
   }
 
   return data;
+}
+
+function getPlaybackState() {
+  return spotifyRequest("/me/player?additional_types=episode");
+}
+
+async function getAvailableDeviceId() {
+  const data = await spotifyRequest("/me/player/devices");
+  const devices = data?.devices || [];
+  const device =
+    devices.find((candidate) => candidate.is_active) ||
+    devices.find((candidate) => !candidate.is_restricted);
+
+  return device?.id || null;
+}
+
+async function withDevice(path, deviceId) {
+  const id = deviceId || (await getAvailableDeviceId());
+
+  if (!id) {
+    const error = new Error(
+      "No Spotify device found. Open Spotify on your phone or computer."
+    );
+    error.reason = "NO_ACTIVE_DEVICE";
+    throw error;
+  }
+
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}device_id=${encodeURIComponent(id)}`;
+}
+
+async function playTrack(uri, positionMs, deviceId) {
+  return spotifyRequest(await withDevice("/me/player/play", deviceId), {
+    method: "PUT",
+    body: { uris: [uri], position_ms: Math.max(0, Math.round(positionMs)) },
+  });
+}
+
+async function pausePlayback(deviceId) {
+  return spotifyRequest(await withDevice("/me/player/pause", deviceId), {
+    method: "PUT",
+  });
+}
+
+async function seekPlayback(positionMs, deviceId) {
+  const position = Math.max(0, Math.round(positionMs));
+
+  return spotifyRequest(
+    await withDevice(`/me/player/seek?position_ms=${position}`, deviceId),
+    { method: "PUT" }
+  );
+}
+
+async function findTrackUriByIsrc(isrc) {
+  const data = await spotifyRequest(
+    `/search?type=track&limit=1&q=${encodeURIComponent(`isrc:${isrc}`)}`
+  );
+
+  return data?.tracks?.items?.[0]?.uri || null;
 }
 
 export {
@@ -199,7 +286,11 @@ export {
   base64encode,
   loginWithSpotify,
   getToken,
-  getRecentlyPlayed,
+  getPlaybackState,
+  playTrack,
+  pausePlayback,
+  seekPlayback,
+  findTrackUriByIsrc,
   hasSpotifySession,
   clearSpotifySession,
 };

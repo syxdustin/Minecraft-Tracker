@@ -2,22 +2,25 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getToken } from "../Spotify.jsx";
 
+function getInitialError() {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("error")) return `Spotify returned "${params.get("error")}".`;
+  if (!params.get("code")) return "Spotify did not return an authorization code.";
+
+  return "";
+}
+
 function Callback() {
   const navigate = useNavigate();
-  const [error, setError] = useState("");
+  const [error, setError] = useState(getInitialError);
   const hasExchanged = useRef(false);
 
   useEffect(() => {
-    if (hasExchanged.current) return;
+    if (hasExchanged.current || error) return;
     hasExchanged.current = true;
 
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-
-    if (!code) {
-      setError("Spotify did not return an authorization code.");
-      return;
-    }
+    const code = new URLSearchParams(window.location.search).get("code");
 
     async function exchangeCode() {
       try {
@@ -29,7 +32,7 @@ function Callback() {
     }
 
     exchangeCode();
-  }, [navigate]);
+  }, [error, navigate]);
 
   if (error) {
     return (
